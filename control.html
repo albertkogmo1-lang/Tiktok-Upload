@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TikTok Clip Uploader — Control Panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: -apple-system, Arial, sans-serif; max-width: 560px; margin: 50px auto; padding: 0 20px; color: #222; }
+  h1 { font-size: 26px; margin-bottom: 4px; }
+  .subtitle { color: #666; margin-bottom: 24px; }
+  .row { margin-bottom: 16px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  select, input[type="text"] { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; }
+  button { background: #fe2c55; color: white; border: none; padding: 12px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; }
+  button:disabled { background: #ccc; cursor: not-allowed; }
+  button.secondary { background: #f0f0f0; color: #222; }
+  #status { font-family: ui-monospace, monospace; font-size: 12.5px; background: #f7f7f7; border-radius: 8px; padding: 14px; margin-top: 20px; white-space: pre-wrap; line-height: 1.6; max-height: 300px; overflow-y: auto; }
+  .connected { color: #0a7a2a; font-weight: 600; }
+  .not-connected { color: #a30000; font-weight: 600; }
+  .warning { background: #fff3f3; border: 1px solid #ffb3b3; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 20px; }
+  progress { width: 100%; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h1>TikTok Clip Uploader</h1>
+<p class="subtitle">Control panel — runs the installed extension in the background</p>
+
+<div id="notInstalledWarning" class="warning" style="display:none;">
+  Extension not detected. Make sure the TikTok Clip Uploader extension is
+  installed and enabled in this browser, then reload this page.
+</div>
+
+<div id="connectionState" class="not-connected">Checking...</div>
+
+<div class="row">
+  <button id="connectBtn">Connect TikTok Account</button>
+</div>
+
+<div class="row">
+  <label>Post mode</label>
+  <select id="postMode">
+    <option value="draft">Draft (Inbox) — needs manual tap to post</option>
+    <option value="direct">Direct Post — publishes automatically</option>
+  </select>
+</div>
+
+<div class="row" id="captionRow" style="display:none;">
+  <label>Caption (optional)</label>
+  <input type="text" id="caption" maxlength="150" placeholder="Add a caption...">
+</div>
+
+<div class="row">
+  <label>Video file</label>
+  <input type="file" id="videoFile" accept="video/mp4,video/webm">
+</div>
+
+<div class="row">
+  <button id="uploadBtn" disabled>Upload</button>
+</div>
+
+<progress id="progressBar" value="0" max="100" style="display:none;"></progress>
+
+<div id="status"></div>
+
+<script>
+// >>> Set this to your extension's fixed ID <<<
+const EXTENSION_ID = 'emmficmfabcpnkkjlfmncfdbcpljddpp';
+
+const statusEl = document.getElementById('status');
+const connectBtn = document.getElementById('connectBtn');
+const uploadBtn = document.getElementById('uploadBtn');
+const fileInput = document.getElementById('videoFile');
+const connectionState = document.getElementById('connectionState');
+const progressBar = document.getElementById('progressBar');
+const postModeSelect = document.getElementById('postMode');
+const captionRow = document.getElementById('captionRow');
+const captionInput = document.getElementById('caption');
+const notInstalledWarning = document.getElementById('notInstalledWarning');
+
+function log(msg) {
+  statusEl.textContent += msg + '\n';
+  statusEl.scrollTop = statusEl.scrollHeight;
+}
+
+function sendToExtension(message) {
+  return new Promise((resolve, reject) => {
+    if (!window.chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
+      return reject(new Error('Chrome extension messaging API not available in this browser.'));
+    }
+    chrome.runtime.sendMessage(EXTENSION_ID, message, (response) => {
+      if (chrome.runtime.lastError) {
+        return reject(new Error(chrome.runtime.lastError.message));
+      }
+      resolve(response);
+    });
+  });
+}
+
+function printLog(result) {
+  (result?.log || []).forEach(log);
+}
+
+async function refreshConnectionUI() {
+  try {
+    const state = await sendToExtension({ action: 'getState' });
+    notInstalledWarning.style.display = 'none';
+    if (state && state.connected) {
+      connectionState.textContent = 'Connected';
+      connectionState.className = 'connected';
+      connectBtn.textContent = 'Reconnect TikTok Account';
+    } else {
+      connectionState.textContent = 'Not connected';
+      connectionState.className = 'not-connected';
+      connectBtn.textContent = 'Connect TikTok Account';
+    }
+    uploadBtn.disabled = !(state && state.connected) || !fileInput.files.length;
+  } catch (e) {
+    notInstalledWarning.style.display = 'block';
+    connectionState.textContent = 'Extension not detected';
+  }
+}
+
+connectBtn.addEventListener('click', async () => {
+  statusEl.textContent = '';
+  try {
+    const result = await sendToExtension({ action: 'connect' });
+    printLog(result);
+    await refreshConnectionUI();
+  } catch (e) {
+    log('Error: ' + e.message);
+  }
+});
+
+postModeSelect.addEventListener('change', () => {
+  captionRow.style.display = postModeSelect.value === 'direct' ? 'block' : 'none';
+});
+
+fileInput.addEventListener('change', refreshConnectionUI);
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+uploadBtn.addEventListener('click', async () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  uploadBtn.disabled = true;
+  progressBar.style.display = 'block';
+  progressBar.value = 0;
+
+  const isDirect = postModeSelect.value === 'direct';
+
+  try {
+    const initResult = await sendToExtension({
+      action: 'uploadInit',
+      mode: isDirect ? 'direct' : 'draft',
+      videoSize: file.size,
+      caption: captionInput.value
+    });
+    printLog(initResult);
+    if (!initResult.success) {
+      uploadBtn.disabled = false;
+      return;
+    }
+    progressBar.value = 25;
+
+    log('Reading file...');
+    const videoBase64 = await fileToBase64(file);
+    progressBar.value = 45;
+
+    const bytesResult = await sendToExtension({
+      action: 'uploadBytes',
+      uploadUrl: initResult.uploadUrl,
+      videoBase64,
+      contentRange: `bytes 0-${file.size - 1}/${file.size}`
+    });
+    printLog(bytesResult);
+    if (!bytesResult.success) {
+      uploadBtn.disabled = false;
+      return;
+    }
+    progressBar.value = 75;
+
+    log('Checking processing status...');
+    await pollStatus(initResult.publishId, isDirect);
+  } catch (e) {
+    log('Error: ' + e.message);
+  }
+  uploadBtn.disabled = false;
+});
+
+async function pollStatus(publishId, isDirect, attempts = 0) {
+  if (attempts > 15) {
+    log('Gave up polling status after several tries — check the TikTok app manually.');
+    progressBar.value = 100;
+    return;
+  }
+  const result = await sendToExtension({ action: 'checkStatus', publishId });
+  printLog(result);
+  const status = result.status;
+  if (status === 'PUBLISH_COMPLETE') {
+    progressBar.value = 100;
+    log(isDirect
+      ? 'Published! Check your TikTok profile (private/SELF_ONLY until app review passes).'
+      : 'Done! Open the TikTok app to finish posting from your inbox.');
+    return;
+  }
+  if (status === 'SEND_TO_USER_INBOX') {
+    progressBar.value = 100;
+    log('Done! Open the TikTok app and check your inbox/notifications.');
+    return;
+  }
+  if (status === 'FAILED') {
+    progressBar.value = 100;
+    log('Upload failed on TikTok\'s side.');
+    return;
+  }
+  setTimeout(() => pollStatus(publishId, isDirect, attempts + 1), 2000);
+}
+
+refreshConnectionUI();
+</script>
+</body>
+</html>
