@@ -12,31 +12,36 @@
   a { color: #fe2c55; text-decoration: none; font-weight: 600; }
   a:hover { text-decoration: underline; }
   ul { padding-left: 20px; }
+  .badge { display: inline-block; background: #e8f5e9; color: #1b5e20; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 12px; margin-bottom: 16px; }
   footer { margin-top: 40px; font-size: 13px; color: #888; }
 </style>
 </head>
 <body>
 
+<div class="badge">Free for creators</div>
 <h1>TikTok Clip Uploader</h1>
-<p class="subtitle">A personal tool for uploading video clips to TikTok</p>
+<p class="subtitle">Upload your own clips to your own TikTok account — built by a creator, for creators</p>
 
 <div class="card">
-  <p>TikTok Clip Uploader is a personal Chrome browser extension that lets an
-  individual creator connect their own TikTok account and upload a locally
-  selected video clip to their profile, using TikTok's official Login Kit
-  and Content Posting API.</p>
+  <p>TikTok Clip Uploader is a free Chrome browser extension that lets any
+  TikTok creator connect their own account and upload a locally selected
+  video clip, using TikTok's official Login Kit and Content Posting API.</p>
 
-  <p><strong>What it does:</strong></p>
+  <p><strong>How it works:</strong></p>
   <ul>
-    <li>Authorizes the user's TikTok account via OAuth (Login Kit)</li>
-    <li>Lets the user select a video file from their own device</li>
-    <li>Uploads the video to the user's own TikTok account via the Content
-    Posting API, either as a private draft or a direct post</li>
+    <li>You connect your own TikTok account via TikTok's official OAuth login screen</li>
+    <li>You select a video file from your own device</li>
+    <li>The extension uploads it to your own TikTok account — either as a private draft to finish posting yourself, or as a direct post</li>
   </ul>
 
-  <p>No content is accessed from or posted to any account other than the one
-  that explicitly authorizes the extension. No data is shared with third
-  parties.</p>
+  <p><strong>Your data stays yours:</strong> your TikTok access token is
+  stored only in your own browser. Our backend never stores your login
+  credentials, your videos, or any of your TikTok data — it only relays
+  your upload request to TikTok's API and forgets it immediately after.</p>
+
+  <p>This is a free, independent tool built for the creator community. It
+  is not affiliated with TikTok Inc., and it does not manage, access, or
+  post to any account other than the one you personally authorize.</p>
 </div>
 
 <p>
@@ -45,7 +50,7 @@
 </p>
 
 <footer>
-  &copy; 2026 TikTok Clip Uploader. Personal project, not affiliated with TikTok Inc.
+  &copy; 2026 TikTok Clip Uploader. Independent project, not affiliated with TikTok Inc.
 </footer>
 
 </body>
